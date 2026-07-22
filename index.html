@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Webhook Dispatcher</title>
+    <style>
+        body { background-color: #1e1e1e; color: #ffffff; font-family: monospace; padding: 20px; }
+        .container { max-width: 500px; margin: auto; background: #252526; padding: 20px; border-radius: 8px; }
+        input, textarea, button { width: 100%; margin-top: 10px; padding: 10px; background: #333; border: 1px solid #444; color: #fff; border-radius: 4px; box-sizing: border-box; }
+        button { background: #5865F2; cursor: pointer; font-weight: bold; }
+        button:hover { background: #4752C4; }
+        #log { margin-top: 15px; height: 150px; overflow-y: auto; background: #111; padding: 10px; border-radius: 4px; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Webhook Dispatcher</h2>
+        <label>Webhook URL:</label>
+        <input type="text" id="webhookUrl" placeholder="https://discord.com/api/webhooks/...">
+        
+        <label>Message Content:</label>
+        <textarea id="messageContent" placeholder="Message text..."></textarea>
+        
+        <label>Delay (ms):</label>
+        <input type="number" id="delay" value="1000">
+        
+        <button onclick="startSpam()">Start</button>
+        <button onclick="stopSpam()" style="background: #ED4245;">Stop</button>
+        
+        <div id="log"></div>
+    </div>
+
+    <script>
+        let intervalId = null;
+
+        function log(msg) {
+            const logDiv = document.getElementById('log');
+            logDiv.innerHTML += `[${new Date().toLocaleTimeString()}] ${msg}<br>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        async function startSpam() {
+            const url = document.getElementById('webhookUrl').value;
+            const content = document.getElementById('messageContent').value;
+            const delay = parseInt(document.getElementById('delay').value) || 1000;
+
+            if (!url || !content) {
+                log('Error: URL and Message required.');
+                return;
+            }
+
+            log('Started dispatching...');
+            
+            intervalId = setInterval(async () => {
+                try {
+                    const response = await fetch(url, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ content: content })
+                    });
+
+                    if (response.ok) {
+                        log('Message sent successfully.');
+                    } else if (response.status === 429) {
+                        const data = await response.json();
+                        log(`Rate limited. Waiting ${data.retry_after}ms`);
+                    } else {
+                        log(`Failed with status: ${response.status}`);
+                    }
+                } catch (err) {
+                    log(`Error: ${err.message}`);
+                }
+            }, delay);
+        }
+
+        function stopSpam() {
+            if (intervalId) {
+                clearInterval(intervalId);
+                intervalId = null;
+                log('Stopped.');
+            }
+        }
+    </script>
+</body>
+</html>
